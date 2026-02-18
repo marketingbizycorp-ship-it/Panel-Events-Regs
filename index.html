@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel Events Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{min-height:100vh;background:#0B0B14;color:#E8E8F0;font-family:'DM Sans','Segoe UI',system-ui,sans-serif;padding:28px 24px 60px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.header h1{font-size:26px;font-weight:700;letter-spacing:-0.5px;display:inline}
+.header .sub{font-size:12px;color:rgba(255,255,255,0.35);font-weight:500;margin-left:12px}
+.accent-bar{height:3px;width:48px;background:#E8651A;border-radius:2px;margin:10px 0 8px}
+.status{display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,0.5)}
+.status-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.tabs{display:flex;gap:2px;border-bottom:1px solid rgba(255,255,255,0.08);margin-top:16px}
+.tab-btn{padding:10px 22px;border-radius:10px 10px 0 0;border:none;background:transparent;color:rgba(255,255,255,0.4);font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;font-family:inherit}
+.tab-btn.active{background:rgba(255,255,255,0.06);color:#fff;font-weight:700;border-bottom-color:#E8651A}
+.filters{display:flex;gap:10px;margin:16px 0 22px;flex-wrap:wrap;align-items:center}
+.filter-btn{padding:7px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:rgba(255,255,255,0.55);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.2s}
+.filter-btn.active{color:#fff}
+.filter-sep{width:1px;background:rgba(255,255,255,0.1);margin:0 4px;height:24px}
+.refresh-btn{padding:7px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.6);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;margin-left:auto}
+.refresh-btn .spinner{display:inline-block;width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,0.4);border-top-color:transparent}
+.refresh-btn.loading .spinner{animation:spin 1s linear infinite}
+.kpi-row{display:flex;gap:12px;margin-bottom:22px;flex-wrap:wrap}
+.kpi{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:18px 20px;flex:1;min-width:130}
+.kpi-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:rgba(255,255,255,0.45);margin-bottom:5px}
+.kpi-value{font-size:28px;font-weight:700;line-height:1.1}
+.kpi-sub{font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px}
+.card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:20px 18px 14px;margin-bottom:16px}
+.card-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.5);margin-bottom:14px}
+.goal-section{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:24px 22px;margin-bottom:22px}
+.goal-section-title{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:rgba(255,255,255,0.6);margin-bottom:18px;display:flex;align-items:center;gap:8px}
+.goal-cards{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:22px}
+.goal-card{background:rgba(255,255,255,0.04);border-radius:16px;padding:20px 18px;flex:1;min-width:200}
+.goal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.goal-product{display:flex;align-items:center;gap:8px}
+.goal-product .dot{width:10px;height:10px;border-radius:3px}
+.goal-product span{font-size:18px;font-weight:700}
+.goal-quarter{font-size:10px;color:rgba(255,255,255,0.35)}
+.progress-row{display:flex;justify-content:space-between;margin-bottom:4px}
+.progress-label{font-size:11px;color:rgba(255,255,255,0.5)}
+.progress-pct{font-size:13px;font-weight:700}
+.progress-bar{background:rgba(255,255,255,0.06);border-radius:8px;height:10px;overflow:hidden;position:relative;margin-bottom:14px}
+.progress-fill{height:100%;border-radius:8px;transition:width 0.8s}
+.progress-marker{position:absolute;top:0;height:100%;width:2px;background:rgba(255,255,255,0.5)}
+.goal-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px}
+.goal-stat-label{color:rgba(255,255,255,0.4);margin-bottom:2px}
+.goal-stat-val{font-size:20px;font-weight:700}
+.goal-stat-val.sm{font-size:15px}
+.projection{margin-top:12px;padding:10px 12px;border-radius:10px}
+.projection-title{font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
+.projection-row{display:flex;justify-content:space-between;align-items:baseline}
+.projection-val{font-size:20px;font-weight:700}
+.projection-status{font-size:10px;font-weight:600}
+.projection-note{font-size:10px;color:rgba(255,255,255,0.3);margin-top:1px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px}
+.grid-2-1{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
+.chart-container{position:relative;width:100%}
+.conv-product{margin-bottom:14px}
+.conv-header{display:flex;justify-content:space-between;margin-bottom:4px}
+.conv-name{font-size:12px;font-weight:600}
+.conv-count{font-size:11px;color:rgba(255,255,255,0.5)}
+.conv-bars{display:flex;gap:6px;font-size:10px}
+.conv-bar-wrap{flex:1}
+.conv-bar-label{color:rgba(255,255,255,0.4);margin-bottom:2px}
+.conv-bar-track{background:rgba(255,255,255,0.06);border-radius:6px;height:22px;overflow:hidden;position:relative}
+.conv-bar-fill{height:100%;border-radius:6px;opacity:0.7}
+.conv-bar-text{position:absolute;right:6px;top:4px;font-size:10px;font-weight:600;color:#fff}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:10px 10px;text-align:left;color:rgba(255,255,255,0.5);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;cursor:pointer;user-select:none;white-space:nowrap}
+td{padding:10px 10px}
+thead tr{border-bottom:1px solid rgba(255,255,255,0.1)}
+tbody tr{border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.15s}
+tbody tr:hover{background:rgba(255,255,255,0.03)}
+.product-badge{display:inline-flex;align-items:center;gap:6px}
+.product-badge .dot{width:8px;height:8px;border-radius:3px;display:inline-block}
+.product-badge span{font-weight:600}
+.conv-pill{padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600}
+.footer{text-align:center;margin-top:28px;font-size:10px;color:rgba(255,255,255,0.2)}
+.hidden{display:none!important}
+@media(max-width:900px){.grid-3{grid-template-columns:1fr}.grid-2-1{grid-template-columns:1fr}.goal-cards{flex-direction:column}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Panel Events Dashboard</h1>
+  <span class="sub">TD / BOA / VET / LAW</span>
+</div>
+<div class="accent-bar"></div>
+<div class="status" id="status">
+  <span class="status-dot" id="statusDot" style="background:rgba(255,255,255,0.3)"></span>
+  <span id="statusLabel" style="font-weight:600">Loading…</span>
+  <span id="statusMeta"></span>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="overview">Overview</button>
+  <button class="tab-btn" data-tab="events">Event List</button>
+</div>
+
+<div class="filters" id="filters"></div>
+
+<div id="tab-overview"></div>
+<div id="tab-events" class="hidden"></div>
+
+<div class="footer" id="footer">Auto-refreshes every 2 min · Goals: TD 340, BOA 340, VET 100, LAW 100/quarter</div>
+
+<script>
+const SHEET_URL="https://docs.google.com/spreadsheets/d/1RBdOWkQlD8NR_2lZtixv1XJONJ4s5pguTiVAzduo1So/gviz/tq?tqx=out:csv&sheet=Import";
+const GOALS={TD:340,BOA:340,VET:100,LAW:100};
+const PC={TD:"#E8651A",BOA:"#2A6FDB",VET:"#16A34A",LAW:"#9333EA"};
+const AC="#E8651A";
+const QC={"Q4 2025":{s:new Date("2025-10-01"),e:new Date("2025-12-31"),d:92},"Q1 2026":{s:new Date("2026-01-01"),e:new Date("2026-03-31"),d:90}};
+
+const FALLBACK=[
+{date:"2025-10-02",product:"BOA",reg:12,icpR:11,nicpR:1,att:10,icpA:5,nicpA:5,dR:0,pR:12,q:"Q4 2025"},
+{date:"2025-10-09",product:"BOA",reg:8,icpR:7,nicpR:1,att:6,icpA:3,nicpA:3,dR:0,pR:8,q:"Q4 2025"},
+{date:"2025-10-16",product:"BOA",reg:10,icpR:9,nicpR:1,att:4,icpA:4,nicpA:0,dR:0,pR:10,q:"Q4 2025"},
+{date:"2025-10-21",product:"BOA",reg:27,icpR:20,nicpR:7,att:10,icpA:7,nicpA:3,dR:1,pR:26,q:"Q4 2025"},
+{date:"2025-10-28",product:"BOA",reg:29,icpR:18,nicpR:11,att:22,icpA:12,nicpA:10,dR:3,pR:26,q:"Q4 2025"},
+{date:"2025-10-08",product:"VET",reg:5,icpR:4,nicpR:1,att:0,icpA:0,nicpA:0,dR:0,pR:5,q:"Q4 2025"},
+{date:"2025-10-22",product:"VET",reg:13,icpR:13,nicpR:0,att:13,icpA:13,nicpA:0,dR:0,pR:13,q:"Q4 2025"},
+{date:"2025-10-29",product:"VET",reg:4,icpR:3,nicpR:1,att:2,icpA:2,nicpA:0,dR:0,pR:3,q:"Q4 2025"},
+{date:"2025-10-06",product:"TD",reg:9,icpR:1,nicpR:8,att:5,icpA:0,nicpA:5,dR:1,pR:8,q:"Q4 2025"},
+{date:"2025-10-07",product:"TD",reg:6,icpR:4,nicpR:2,att:4,icpA:2,nicpA:2,dR:2,pR:4,q:"Q4 2025"},
+{date:"2025-10-14",product:"TD",reg:11,icpR:0,nicpR:11,att:4,icpA:0,nicpA:4,dR:0,pR:16,q:"Q4 2025"},
+{date:"2025-10-20",product:"TD",reg:16,icpR:6,nicpR:10,att:4,icpA:0,nicpA:4,dR:1,pR:15,q:"Q4 2025"},
+{date:"2025-10-27",product:"TD",reg:57,icpR:40,nicpR:17,att:30,icpA:24,nicpA:6,dR:3,pR:54,q:"Q4 2025"},
+{date:"2025-10-28",product:"TD",reg:23,icpR:11,nicpR:12,att:10,icpA:5,nicpA:5,dR:1,pR:22,q:"Q4 2025"},
+{date:"2025-11-06",product:"BOA",reg:12,icpR:9,nicpR:3,att:3,icpA:1,nicpA:2,dR:0,pR:12,q:"Q4 2025"},
+{date:"2025-11-03",product:"TD",reg:3,icpR:2,nicpR:1,att:3,icpA:2,nicpA:1,dR:0,pR:3,q:"Q4 2025"},
+{date:"2025-11-10",product:"TD",reg:50,icpR:15,nicpR:35,att:27,icpA:5,nicpA:22,dR:2,pR:48,q:"Q4 2025"},
+{date:"2025-11-17",product:"TD",reg:16,icpR:11,nicpR:5,att:7,icpA:5,nicpA:2,dR:1,pR:15,q:"Q4 2025"},
+{date:"2025-11-18",product:"TD",reg:52,icpR:13,nicpR:39,att:12,icpA:4,nicpA:8,dR:3,pR:49,q:"Q4 2025"},
+{date:"2025-11-24",product:"TD",reg:18,icpR:9,nicpR:9,att:7,icpA:3,nicpA:4,dR:1,pR:17,q:"Q4 2025"},
+{date:"2025-12-02",product:"TD",reg:16,icpR:7,nicpR:9,att:8,icpA:3,nicpA:5,dR:5,pR:11,q:"Q4 2025"},
+{date:"2025-12-04",product:"BOA",reg:5,icpR:3,nicpR:2,att:2,icpA:2,nicpA:0,dR:0,pR:5,q:"Q4 2025"},
+{date:"2025-11-20",product:"VET",reg:12,icpR:12,nicpR:0,att:9,icpA:9,nicpA:0,dR:0,pR:12,q:"Q4 2025"},
+{date:"2025-11-13",product:"BOA",reg:11,icpR:7,nicpR:4,att:2,icpA:1,nicpA:1,dR:0,pR:11,q:"Q4 2025"},
+{date:"2025-11-19",product:"BOA",reg:13,icpR:10,nicpR:3,att:6,icpA:4,nicpA:2,dR:0,pR:13,q:"Q4 2025"},
+{date:"2025-12-08",product:"TD",reg:40,icpR:25,nicpR:15,att:23,icpA:14,nicpA:9,dR:12,pR:28,q:"Q4 2025"},
+{date:"2025-12-11",product:"VET",reg:12,icpR:11,nicpR:1,att:4,icpA:4,nicpA:0,dR:0,pR:13,q:"Q4 2025"},
+{date:"2025-12-15",product:"TD",reg:11,icpR:7,nicpR:4,att:7,icpA:5,nicpA:2,dR:3,pR:8,q:"Q4 2025"},
+{date:"2025-12-18",product:"BOA",reg:9,icpR:2,nicpR:7,att:3,icpA:0,nicpA:3,dR:0,pR:9,q:"Q4 2025"},
+{date:"2026-01-12",product:"TD",reg:14,icpR:10,nicpR:4,att:6,icpA:5,nicpA:1,dR:2,pR:12,q:"Q1 2026"},
+{date:"2026-01-13",product:"BOA",reg:12,icpR:8,nicpR:4,att:7,icpA:5,nicpA:2,dR:0,pR:12,q:"Q1 2026"},
+{date:"2026-01-14",product:"LAW",reg:49,icpR:36,nicpR:13,att:14,icpA:12,nicpA:2,dR:0,pR:53,q:"Q1 2026"},
+{date:"2026-01-15",product:"VET",reg:90,icpR:90,nicpR:0,att:45,icpA:45,nicpA:0,dR:0,pR:90,q:"Q1 2026"},
+{date:"2026-01-20",product:"TD",reg:21,icpR:11,nicpR:10,att:7,icpA:4,nicpA:3,dR:4,pR:17,q:"Q1 2026"},
+{date:"2026-01-21",product:"BOA",reg:15,icpR:9,nicpR:6,att:8,icpA:3,nicpA:5,dR:5,pR:10,q:"Q1 2026"},
+{date:"2026-01-22",product:"VET",reg:21,icpR:21,nicpR:0,att:9,icpA:9,nicpA:0,dR:1,pR:20,q:"Q1 2026"},
+{date:"2026-01-26",product:"BOA",reg:3,icpR:2,nicpR:1,att:1,icpA:0,nicpA:1,dR:0,pR:3,q:"Q1 2026"},
+{date:"2026-01-28",product:"TD",reg:42,icpR:32,nicpR:10,att:26,icpA:18,nicpA:8,dR:7,pR:35,q:"Q1 2026"},
+{date:"2026-01-28",product:"LAW",reg:5,icpR:5,nicpR:0,att:1,icpA:1,nicpA:0,dR:0,pR:0,q:"Q1 2026"},
+{date:"2026-01-29",product:"VET",reg:42,icpR:41,nicpR:1,att:13,icpA:13,nicpA:0,dR:0,pR:42,q:"Q1 2026"},
+{date:"2026-02-04",product:"VET",reg:2,icpR:2,nicpR:0,att:2,icpA:2,nicpA:0,dR:0,pR:2,q:"Q1 2026"},
+{date:"2026-02-05",product:"TD",reg:8,icpR:1,nicpR:7,att:2,icpA:1,nicpA:1,dR:0,pR:8,q:"Q1 2026"},
+{date:"2026-02-10",product:"TD",reg:14,icpR:10,nicpR:4,att:6,icpA:5,nicpA:1,dR:2,pR:12,q:"Q1 2026"},
+{date:"2026-02-12",product:"LAW",reg:6,icpR:5,nicpR:1,att:3,icpA:3,nicpA:0,dR:2,pR:6,q:"Q1 2026"},
+{date:"2026-02-12",product:"VET",reg:6,icpR:6,nicpR:0,att:2,icpA:2,nicpA:0,dR:0,pR:6,q:"Q1 2026"},
+{date:"2026-02-16",product:"BOA",reg:12,icpR:11,nicpR:1,att:0,icpA:0,nicpA:0,dR:0,pR:0,q:"Q1 2026"},
+];
+
+let allEvents=FALLBACK.slice();
+let dataSrc="cached";
+let selQ="All",selP="All",curTab="overview";
+let sortCol="date",sortDir="desc";
+let charts={};
+
+/* ── Parsing ── */
+function parseDate(raw){
+  if(!raw)return null;const s=raw.trim();
+  const m=s.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);
+  if(m){const mos={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};const mo=mos[m[2].toLowerCase().slice(0,3)];if(mo!==undefined)return new Date(parseInt(m[3]),mo,parseInt(m[1]));}
+  const d=new Date(s);return isNaN(d.getTime())?null:d;
+}
+function assignQ(d){const m=d.getMonth()+1,y=d.getFullYear();if(y===2025&&m>=10)return"Q4 2025";return"Q1 2026";}
+function normDate(d){const y=d.getFullYear(),m=d.getMonth()+1;if(y===2025&&m>=1&&m<=3)return new Date(2026,d.getMonth(),d.getDate());if(y===2926)return new Date(2026,d.getMonth(),d.getDate());return d;}
+function parseCSV(csv){
+  const{data}=Papa.parse(csv,{header:false,skipEmptyLines:true});
+  const evts=[],skip=["Q4 2025","Q1 2026","Q2 2026","Q3 2026"];
+  for(let i=0;i<data.length;i++){const r=data[i];if(!r||r.length<10)continue;const c=(r[0]||"").trim();if(!c||c==="Date of the Event")continue;if(skip.includes(c)||c.toLowerCase().startsWith("total")||["BOA","TD","VET","LAW"].includes(c))continue;const dt=parseDate(c);if(!dt)continue;const prod=(r[1]||"").trim().toUpperCase();if(!["TD","BOA","VET","LAW"].includes(prod))continue;const n=v=>{const x=parseInt((v||"0").toString().replace(/,/g,"").trim());return isNaN(x)?0:x;};const nd=normDate(dt);evts.push({date:nd.toISOString().slice(0,10),product:prod,reg:n(r[2]),icpR:n(r[3]),nicpR:n(r[4]),att:n(r[5]),icpA:n(r[6]),nicpA:n(r[7]),dR:n(r[8]),pR:n(r[9]),q:assignQ(dt)});}
+  return evts;
+}
+
+/* ── Helpers ── */
+const pct=(a,b)=>b===0?0:(a/b)*100;
+const fmt=n=>n.toFixed(1)+"%";
+const fmtD=ds=>new Date(ds).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"2-digit"});
+function filtered(){return allEvents.filter(e=>(selP==="All"||e.product===selP)&&(selQ==="All"||e.q===selQ));}
+function sum(arr,k){return arr.reduce((s,e)=>s+(e[k]||0),0);}
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+/* ── Status ── */
+function setStatus(src,time){
+  dataSrc=src;
+  const dot=document.getElementById("statusDot"),lbl=document.getElementById("statusLabel"),meta=document.getElementById("statusMeta");
+  if(src==="live"){dot.style.background="#16A34A";dot.style.boxShadow="0 0 6px #16A34A55";lbl.style.color="#16A34A";lbl.textContent="Live";}
+  else if(src==="stale"){dot.style.background="#EAB308";dot.style.boxShadow="none";lbl.style.color="#EAB308";lbl.textContent="Stale";}
+  else{dot.style.background="rgba(255,255,255,0.3)";dot.style.boxShadow="none";lbl.style.color="rgba(255,255,255,0.5)";lbl.textContent="Cached data";}
+  meta.textContent=time?` · Updated ${time} · ${allEvents.length} events`:` · ${allEvents.length} events`;
+}
+
+/* ── Fetch ── */
+async function fetchData(){
+  const btn=document.getElementById("refreshBtn");
+  if(btn){btn.classList.add("loading");btn.querySelector("span:last-child").textContent="Syncing…";}
+  try{
+    const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),8000);
+    const res=await fetch(SHEET_URL,{signal:ctrl.signal});clearTimeout(timer);
+    if(!res.ok)throw new Error("HTTP "+res.status);
+    const csv=await res.text();const parsed=parseCSV(csv);
+    if(parsed.length>0){allEvents=parsed;setStatus("live",new Date().toLocaleTimeString());render();}
+  }catch(e){console.warn("Fetch failed:",e.message);setStatus(dataSrc==="live"?"stale":"cached");}
+  finally{if(btn){btn.classList.remove("loading");btn.querySelector("span:last-child").textContent="Refresh";}}
+}
+
+/* ── Filters ── */
+function buildFilters(){
+  const el=document.getElementById("filters");
+  const quarters=["All","Q4 2025","Q1 2026"];
+  const products=["All","TD","BOA","VET","LAW"];
+  let html="";
+  quarters.forEach(q=>{const active=selQ===q;const bg=active?AC:"transparent";const bc=active?AC:"rgba(255,255,255,0.1)";html+=`<button class="filter-btn${active?" active":""}" data-fq="${q}" style="background:${bg};border-color:${bc}">${q}</button>`;});
+  html+=`<div class="filter-sep"></div>`;
+  products.forEach(p=>{const active=selP===p;const c=PC[p]||AC;const bg=active?c:"transparent";const bc=active?c:"rgba(255,255,255,0.1)";html+=`<button class="filter-btn${active?" active":""}" data-fp="${p}" style="background:${bg};border-color:${bc}">${p}</button>`;});
+  html+=`<button class="refresh-btn" id="refreshBtn" onclick="fetchData()"><span class="spinner"></span><span>Refresh</span></button>`;
+  el.innerHTML=html;
+  el.querySelectorAll("[data-fq]").forEach(b=>b.onclick=()=>{selQ=b.dataset.fq;buildFilters();render();});
+  el.querySelectorAll("[data-fp]").forEach(b=>b.onclick=()=>{selP=b.dataset.fp;buildFilters();render();});
+}
+
+/* ── Tabs ── */
+document.querySelectorAll(".tab-btn").forEach(b=>b.onclick=()=>{
+  curTab=b.dataset.tab;
+  document.querySelectorAll(".tab-btn").forEach(x=>x.classList.remove("active"));b.classList.add("active");
+  document.getElementById("tab-overview").classList.toggle("hidden",curTab!=="overview");
+  document.getElementById("tab-events").classList.toggle("hidden",curTab!=="events");
+  render();
+});
+
+/* ── Make Chart ── */
+function makeChart(canvasId,type,cfg){
+  destroyChart(canvasId);
+  const ctx=document.getElementById(canvasId);
+  if(!ctx)return;
+  Chart.defaults.color="rgba(255,255,255,0.5)";Chart.defaults.borderColor="rgba(255,255,255,0.06)";
+  charts[canvasId]=new Chart(ctx,{type,...cfg});
+}
+
+/* ── Render ── */
+function render(){
+  const f=filtered();
+  const t={reg:sum(f,"reg"),icpR:sum(f,"icpR"),nicpR:sum(f,"nicpR"),att:sum(f,"att"),icpA:sum(f,"icpA"),nicpA:sum(f,"nicpA"),dR:sum(f,"dR"),pR:sum(f,"pR"),n:f.length};
+  t.conv=pct(t.att,t.reg);t.icpPct=pct(t.icpR,t.reg);t.icpConv=pct(t.icpA,t.icpR);
+
+  const byP={};f.forEach(e=>{if(!byP[e.product])byP[e.product]={product:e.product,reg:0,icpR:0,att:0,icpA:0,n:0,dR:0,pR:0};const x=byP[e.product];x.reg+=e.reg;x.icpR+=e.icpR;x.att+=e.att;x.icpA+=e.icpA;x.n++;x.dR+=e.dR;x.pR+=e.pR;});
+  const prods=Object.values(byP).map(x=>({...x,conv:pct(x.att,x.reg),icpPct:pct(x.icpR,x.reg),avg:x.reg/x.n})).sort((a,b)=>b.reg-a.reg);
+
+  if(curTab==="overview")renderOverview(t,prods,f);
+  if(curTab==="events")renderEvents(t,prods,f);
+}
+
+function renderOverview(t,prods,f){
+  const el=document.getElementById("tab-overview");
+  // Goal cards
+  const ps=["TD","BOA","VET","LAW"],qs=selQ==="All"?["Q4 2025","Q1 2026"]:[selQ];
+  let goalHTML="";
+  qs.forEach(q=>ps.forEach(pp=>{
+    if(selP!=="All"&&selP!==pp)return;
+    const evts=allEvents.filter(e=>e.product===pp&&e.q===q);if(!evts.length)return;
+    const goal=GOALS[pp],color=PC[pp],qc=QC[q];if(!qc)return;
+    const actual=sum(evts,"reg"),cnt=evts.length,variance=actual-goal,att=pct(actual,goal);
+    const today=new Date(),elapsed=Math.min((today-qc.s)/864e5,qc.d),frac=elapsed/qc.d,done=today>qc.e;
+    let proj,pn;if(done){proj=actual;pn="Quarter completed";}else{const rpd=frac>0?actual/elapsed:0;proj=Math.round(rpd*qc.d);pn=`${Math.round(frac*100)}% through quarter`;}
+    const will=proj>=goal;const attCol=att>=100?"#16A34A":att>=70?"#EAB308":"#EF4444";const projCol=will?"#16A34A":"#EF4444";
+    goalHTML+=`<div class="goal-card" style="border:1px solid ${color}33">
+      <div class="goal-header"><div class="goal-product"><div class="dot" style="background:${color}"></div><span style="color:${color}">${pp}</span></div><span class="goal-quarter">${q}</span></div>
+      <div class="progress-row"><span class="progress-label">Goal Attainment</span><span class="progress-pct" style="color:${attCol}">${att.toFixed(1)}%</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(att,100)}%;background:${attCol}"></div>${!done?`<div class="progress-marker" style="left:${Math.min(frac*100,100)}%"></div>`:""}</div>
+      <div class="goal-stats"><div><div class="goal-stat-label">Actual</div><div class="goal-stat-val">${actual}</div></div><div><div class="goal-stat-label">Goal</div><div class="goal-stat-val" style="color:rgba(255,255,255,0.3)">${goal}</div></div><div><div class="goal-stat-label">Variance</div><div class="goal-stat-val sm" style="color:${variance>=0?"#16A34A":"#EF4444"}">${variance>=0?"+":""}${variance}</div></div><div><div class="goal-stat-label">Events</div><div class="goal-stat-val sm" style="color:rgba(255,255,255,0.7)">${cnt}</div></div></div>
+      <div class="projection" style="background:${will?"rgba(22,163,74,0.08)":"rgba(239,68,68,0.08)"};border:1px solid ${will?"rgba(22,163,74,0.2)":"rgba(239,68,68,0.2)"}"><div class="projection-title">Projection</div><div class="projection-row"><span class="projection-val" style="color:${projCol}">${proj}</span><span class="projection-status" style="color:${projCol}">${will?"ON TRACK":`SHORT BY ${goal-proj}`}</span></div><div class="projection-note">${pn}</div></div>
+    </div>`;
+  }));
+
+  // Goal bar data
+  let goalBarLabels=[],goalBarGoals=[],goalBarActuals=[],goalBarColors=[];
+  qs.forEach(q=>ps.forEach(pp=>{
+    if(selP!=="All"&&selP!==pp)return;
+    const evts=allEvents.filter(e=>e.product===pp&&e.q===q);const act=sum(evts,"reg");
+    if(act>0||GOALS[pp]){goalBarLabels.push(`${pp} ${q}`);goalBarGoals.push(GOALS[pp]);goalBarActuals.push(act);goalBarColors.push(act>=GOALS[pp]?"#16A34A":PC[pp]);}
+  }));
+
+  // Conv bars
+  let convHTML="";
+  prods.forEach(pp=>{
+    const cv=pct(pp.att,pp.reg),ip=pct(pp.icpR,pp.reg);
+    convHTML+=`<div class="conv-product"><div class="conv-header"><span class="conv-name" style="color:${PC[pp.product]}">${pp.product}</span><span class="conv-count">${pp.n} events</span></div><div class="conv-bars"><div class="conv-bar-wrap"><div class="conv-bar-label">Reg→Att</div><div class="conv-bar-track"><div class="conv-bar-fill" style="width:${Math.min(cv,100)}%;background:${PC[pp.product]}"></div><span class="conv-bar-text">${fmt(cv)}</span></div></div><div class="conv-bar-wrap"><div class="conv-bar-label">ICP %</div><div class="conv-bar-track"><div class="conv-bar-fill" style="width:${Math.min(ip,100)}%;background:#16A34A"></div><span class="conv-bar-text">${fmt(ip)}</span></div></div></div></div>`;
+  });
+
+  el.innerHTML=`
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-label">Total Events</div><div class="kpi-value">${t.n}</div></div>
+      <div class="kpi"><div class="kpi-label">Total Registrants</div><div class="kpi-value">${t.reg.toLocaleString()}</div></div>
+      <div class="kpi"><div class="kpi-label">Total Attendees</div><div class="kpi-value">${t.att.toLocaleString()}</div></div>
+      <div class="kpi"><div class="kpi-label">ICP Registrants</div><div class="kpi-value" style="color:#16A34A">${t.icpR.toLocaleString()}</div><div class="kpi-sub">${fmt(t.icpPct)} of total</div></div>
+      <div class="kpi"><div class="kpi-label">Reg → Attendee</div><div class="kpi-value" style="color:${AC}">${fmt(t.conv)}</div></div>
+      <div class="kpi"><div class="kpi-label">ICP Conversion</div><div class="kpi-value" style="color:#2A6FDB">${fmt(t.icpConv)}</div><div class="kpi-sub">ICP Reg → ICP Att</div></div>
+    </div>
+    <div class="goal-section">
+      <div class="goal-section-title"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${AC}"></span>Goal Tracking & Projections</div>
+      <div class="goal-cards">${goalHTML}</div>
+      <div class="card"><div class="card-title">Goal vs Actual Registrations</div><div class="chart-container"><canvas id="chartGoal" height="260"></canvas></div></div>
+    </div>
+    <div class="grid-3">
+      <div class="card"><div class="card-title">Registrations by Product</div><div class="chart-container"><canvas id="chartByProd" height="220"></canvas></div></div>
+      <div class="card"><div class="card-title">ICP vs Non-ICP</div><div class="chart-container"><canvas id="chartICP" height="220"></canvas></div><div style="text-align:center;margin-top:4px;font-size:20px;font-weight:700;color:#16A34A">${fmt(t.icpPct)}</div></div>
+      <div class="card"><div class="card-title">Registration Source</div><div class="chart-container"><canvas id="chartSrc" height="220"></canvas></div><div style="text-align:center;margin-top:4px;font-size:12px;color:rgba(255,255,255,0.5)">Partner: <strong style="color:#2A6FDB">${t.pR}</strong> | Direct: <strong style="color:${AC}">${t.dR}</strong></div></div>
+    </div>
+    <div class="grid-2-1">
+      <div class="card"><div class="card-title">Event Timeline</div><div class="chart-container"><canvas id="chartTimeline" height="240"></canvas></div></div>
+      <div class="card"><div class="card-title">Conversion by Product</div><div style="padding-top:6px">${convHTML}</div></div>
+    </div>
+  `;
+
+  // Charts
+  const barOpts={responsive:true,plugins:{legend:{labels:{font:{size:11}}}},scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:"rgba(255,255,255,0.06)"},ticks:{font:{size:10}}}}};
+
+  makeChart("chartGoal","bar",{data:{labels:goalBarLabels,datasets:[{label:"Goal",data:goalBarGoals,backgroundColor:"rgba(255,255,255,0.12)",borderRadius:4},{label:"Actual",data:goalBarActuals,backgroundColor:goalBarColors,borderRadius:4}]},options:{...barOpts,plugins:{legend:{labels:{font:{size:11}}}}}});
+
+  makeChart("chartByProd","bar",{data:{labels:prods.map(p=>p.product),datasets:[{label:"Total",data:prods.map(p=>p.reg),backgroundColor:"#404060",borderRadius:4},{label:"ICP",data:prods.map(p=>p.icpR),backgroundColor:"#16A34A",borderRadius:4}]},options:barOpts});
+
+  makeChart("chartICP","doughnut",{data:{labels:["ICP","Non-ICP"],datasets:[{data:[t.icpR,t.nicpR],backgroundColor:["#16A34A","#404060"],borderWidth:0}]},options:{responsive:true,cutout:"60%",plugins:{legend:{position:"bottom",labels:{font:{size:11}}}}}});
+
+  makeChart("chartSrc","doughnut",{data:{labels:["Partner","Direct"],datasets:[{data:[t.pR,t.dR],backgroundColor:["#2A6FDB",AC],borderWidth:0}]},options:{responsive:true,cutout:"60%",plugins:{legend:{position:"bottom",labels:{font:{size:11}}}}}});
+
+  const sorted=[...f].sort((a,b)=>new Date(a.date)-new Date(b.date));
+  makeChart("chartTimeline","line",{data:{labels:sorted.map(e=>fmtD(e.date)),datasets:[{label:"Registrants",data:sorted.map(e=>e.reg),borderColor:AC,backgroundColor:AC+"33",pointRadius:3,tension:0.3},{label:"Attendees",data:sorted.map(e=>e.att),borderColor:"#2A6FDB",backgroundColor:"#2A6FDB33",pointRadius:3,tension:0.3},{label:"ICP Reg",data:sorted.map(e=>e.icpR),borderColor:"#16A34A",backgroundColor:"#16A34A33",pointRadius:2,borderDash:[5,3],tension:0.3}]},options:{...barOpts,elements:{line:{borderWidth:2}}}});
+}
+
+function renderEvents(t,prods,f){
+  const el=document.getElementById("tab-events");
+  const arr=[...f];
+  arr.sort((a,b)=>{let va,vb;if(sortCol==="date"){va=new Date(a.date);vb=new Date(b.date);}else if(sortCol==="product"){va=a.product;vb=b.product;}else if(sortCol==="q"){va=a.q;vb=b.q;}else{va=a[sortCol]||0;vb=b[sortCol]||0;}if(va<vb)return sortDir==="asc"?-1:1;if(va>vb)return sortDir==="asc"?1:-1;return 0;});
+
+  const si=c=>sortCol===c?(sortDir==="asc"?" ↑":" ↓"):"";
+  const cols=[{k:"date",l:"Date"},{k:"product",l:"Product"},{k:"q",l:"Quarter"},{k:"reg",l:"Registrants"},{k:"icpR",l:"ICP Reg"},{k:"nicpR",l:"Non-ICP"},{k:"att",l:"Attendees"},{k:"icpA",l:"ICP Att"},{k:"nicpA",l:"Non-ICP Att"},{k:"conv",l:"Conv %"},{k:"dR",l:"Direct"},{k:"pR",l:"Partner"}];
+
+  let rows="";arr.forEach(e=>{
+    const cv=e.reg>0?pct(e.att,e.reg):0;const cc=cv>=60?"#16A34A":cv>=40?"#EAB308":"#EF4444";const cbg=cv>=60?"rgba(22,163,74,0.12)":cv>=40?"rgba(234,179,8,0.12)":"rgba(239,68,68,0.12)";
+    rows+=`<tr><td style="white-space:nowrap">${fmtD(e.date)}</td><td><span class="product-badge"><span class="dot" style="background:${PC[e.product]}"></span><span style="color:${PC[e.product]}">${e.product}</span></span></td><td style="color:rgba(255,255,255,0.5);font-size:11px">${e.q}</td><td style="font-weight:600">${e.reg}</td><td style="color:#16A34A">${e.icpR}</td><td style="color:rgba(255,255,255,0.4)">${e.nicpR}</td><td style="font-weight:600">${e.att}</td><td style="color:#2A6FDB">${e.icpA}</td><td style="color:rgba(255,255,255,0.4)">${e.nicpA}</td><td><span class="conv-pill" style="background:${cbg};color:${cc}">${fmt(cv)}</span></td><td>${e.dR}</td><td>${e.pR}</td></tr>`;
+  });
+
+  let summRows="";prods.forEach(pp=>{
+    const goal=GOALS[pp.product]||0,v=pp.reg-goal;
+    summRows+=`<tr><td style="font-weight:700;color:${PC[pp.product]}">${pp.product}</td><td>${pp.n}</td><td style="font-weight:600">${pp.reg}</td><td style="color:rgba(255,255,255,0.35)">${goal}</td><td style="font-weight:700;color:${v>=0?"#16A34A":"#EF4444"}">${v>=0?"+":""}${v}</td><td style="color:#16A34A">${pp.icpR}</td><td style="color:#16A34A">${fmt(pp.icpPct)}</td><td style="font-weight:600">${pp.att}</td><td style="color:${AC};font-weight:600">${fmt(pp.conv)}</td><td>${pp.avg.toFixed(1)}</td><td>${pp.dR}</td><td>${pp.pR}</td></tr>`;
+  });
+
+  el.innerHTML=`
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-label">Showing</div><div class="kpi-value">${arr.length} events</div></div>
+      <div class="kpi"><div class="kpi-label">Registrants</div><div class="kpi-value">${t.reg.toLocaleString()}</div></div>
+      <div class="kpi"><div class="kpi-label">Attendees</div><div class="kpi-value">${t.att.toLocaleString()}</div></div>
+      <div class="kpi"><div class="kpi-label">Avg Reg / Event</div><div class="kpi-value">${t.n>0?(t.reg/t.n).toFixed(1):"0"}</div></div>
+      <div class="kpi"><div class="kpi-label">Avg Conv Rate</div><div class="kpi-value" style="color:${AC}">${fmt(t.conv)}</div></div>
+    </div>
+    <div class="card" style="padding:6px 0;overflow-x:auto">
+      <table><thead><tr>${cols.map(c=>`<th data-sort="${c.k==="conv"?"att":c.k}">${c.l}${si(c.k==="conv"?"att":c.k)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table>
+    </div>
+    <div class="card" style="margin-top:18px"><div class="card-title">Product Summary</div>
+      <div style="overflow-x:auto"><table><thead><tr>${["Product","Events","Registrants","Goal","Variance","ICP Reg","ICP %","Attendees","Conv Rate","Avg/Event","Direct","Partner"].map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${summRows}</tbody></table></div>
+    </div>
+  `;
+
+  el.querySelectorAll("th[data-sort]").forEach(th=>th.onclick=()=>{
+    const col=th.dataset.sort;if(sortCol===col)sortDir=sortDir==="asc"?"desc":"asc";else{sortCol=col;sortDir="desc";}render();
+  });
+}
+
+/* ── Init ── */
+buildFilters();
+setStatus("cached");
+render();
+fetchData();
+setInterval(fetchData,120000);
+</script>
+</body>
+</html>
